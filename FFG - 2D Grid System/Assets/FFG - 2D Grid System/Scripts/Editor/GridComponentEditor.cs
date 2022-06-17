@@ -32,7 +32,7 @@ namespace FFG_Editors
         {
             bool shouldDisable = EditorApplication.isPlaying || EditorApplication.isPaused;
 
-            if(shouldDisable)
+            if (shouldDisable)
                 Info("Exit playmode to edit fields", MessageType.Warning);
 
             EditorGUI.BeginDisabledGroup(shouldDisable);
@@ -58,6 +58,7 @@ namespace FFG_Editors
             {
                 Space(10);
                 Info($"If enabled then by pressing {_validCellKey} you can make a cell in grid valid and by pressing {_invalidCellKey} you can make a cell in grid invalid");
+                Space(20);
             }
 
             if (_shouldDrawGizmos.boolValue == false)
@@ -171,13 +172,11 @@ namespace FFG_Editors
                         int length = _invalidCellArray.arraySize;
 
                         for (int i = 0; i < length; i++)
-                        {
                             if (_invalidCellArray.GetArrayElementAtIndex(i).vector2IntValue == targetIndex)
                             {
                                 index = i;
                                 break;
                             }
-                        }
 
                         if (e.keyCode == _invalidCellKey && index == -1)
                         {

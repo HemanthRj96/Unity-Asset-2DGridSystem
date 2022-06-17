@@ -18,7 +18,7 @@ namespace FFG
         /// <summary>
         /// Override method to format the values inside the cell
         /// </summary>
-        public override string ToString() => Data == null ? "-" : Data.ToString() + ":" + IsValid;
+        public override string ToString() => (Data == null ? "-" : Data.ToString()) + ":" + IsValid;
 
         #endregion
     }

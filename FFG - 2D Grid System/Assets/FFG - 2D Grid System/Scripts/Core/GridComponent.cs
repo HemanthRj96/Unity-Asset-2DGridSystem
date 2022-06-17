@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 
@@ -156,24 +157,44 @@ namespace FFG
         /// </summary>
         public Cell[,] GetCellArray() => _grid.CellArray;
 
+        /// <summary>
+        /// Returns the cell corresponding to an x, y value
+        /// </summary>
+        /// <param name="x">X index of the cell</param>
+        /// <param name="y">Y index of the cell</param>
+        /// <returns>Returns null if invalid cell index</returns>
+        public Cell GetCell(int x, int y)
+        {
+            if (IsInside(x, y))
+                return _grid.CellArray[x, y];
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the cell corresponding to a world position
+        /// </summary>
+        /// <param name="worldPosition">World position</param>
+        /// <returns>Returns null if an invalid cell is found</returns>
+        public Cell GetCell(Vector3 worldPosition)
+        {
+            GetXY(worldPosition, out int x, out int y);
+            return GetCell(x, y);
+        }
+
         #endregion
         #region Lifecycle methods
 
         private void Awake()
         {
-            List<Vector2Int> invalidIndexList = new List<Vector2Int>();
             _grid = new Grid(GridOrigin, GridDimension.x, GridDimension.y, CellDimension);
-            invalidIndexList.AddRange(_gcData._invalidCellArray);
 
-            foreach (var index in invalidIndexList)
+            foreach (var index in _gcData._invalidCellArray)
             {
                 if (_grid.IsInside(index.x, index.y))
                     _grid.CellArray[index.x, index.y].IsValid = false;
                 else
-                    invalidIndexList.Remove(index);
+                    _gcData._invalidCellArray.ToList().Remove(index);
             }
-
-            _gcData._invalidCellArray = invalidIndexList.ToArray();
         }
 
         private void Update()
