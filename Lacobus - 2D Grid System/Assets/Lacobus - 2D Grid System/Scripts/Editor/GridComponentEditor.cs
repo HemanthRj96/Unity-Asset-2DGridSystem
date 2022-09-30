@@ -1,30 +1,28 @@
-using FFG;
+using Lacobus.Grid;
 using UnityEditor;
 using UnityEngine;
 
 
-namespace FFG_Editors
+namespace Lacobus_Editors.Grid
 {
     [CustomEditor(typeof(GridComponent))]
     public class GridComponentEditor : EditorUtils<GridComponent>
     {
         private static bool _enableDebugSettings = false;
-        private static bool _enableCellValidator = false;
-        private static Vector2 _mousePosition;
-        private static KeyCode _validCellKey = KeyCode.F;
-        private static KeyCode _invalidCellKey = KeyCode.G;
 
         SerializedProperty _gcData;
         SerializedProperty _gridDimesion;
         SerializedProperty _cellDimesion;
         SerializedProperty _gridOffset;
-        SerializedProperty _invalidCellArray;
 
         SerializedProperty _offsetType;
         SerializedProperty _presetType;
         SerializedProperty _shouldDrawGizmos;
         SerializedProperty _gridLineColor;
         SerializedProperty _crossLineColor;
+
+        SerializedProperty _useSimpleSpriteRendering;
+        SerializedProperty _defaultSimpleSprite;
 
 
 
@@ -38,28 +36,22 @@ namespace FFG_Editors
             EditorGUI.BeginDisabledGroup(shouldDisable);
 
             _gcData = GetProperty("_gcData");
-            _gridDimesion = _gcData.FindPropertyRelative("_gridDimension");
-            _cellDimesion = _gcData.FindPropertyRelative("_cellDimension");
-            _gridOffset = _gcData.FindPropertyRelative("_gridOffset");
-            _invalidCellArray = _gcData.FindPropertyRelative("_invalidCellArray");
-            _offsetType = _gcData.FindPropertyRelative("_offsetType");
-            _presetType = _gcData.FindPropertyRelative("_presetType");
-            _shouldDrawGizmos = _gcData.FindPropertyRelative("_shouldDrawGizmos");
-            _gridLineColor = _gcData.FindPropertyRelative("_gridLineColor");
-            _crossLineColor = _gcData.FindPropertyRelative("_crossLineColor");
+            _useSimpleSpriteRendering = GetProperty("_useSimpleSpriteRendering");
+            _defaultSimpleSprite = GetProperty("_defaultSimpleSprite");
+
+            _gridDimesion = _gcData.FindPropertyRelative("gridDimension");
+            _cellDimesion = _gcData.FindPropertyRelative("cellDimension");
+            _gridOffset = _gcData.FindPropertyRelative("gridOffset");
+            _offsetType = _gcData.FindPropertyRelative("offsetType");
+            _presetType = _gcData.FindPropertyRelative("presetType");
+            _shouldDrawGizmos = _gcData.FindPropertyRelative("shouldDrawGizmos");
+            _gridLineColor = _gcData.FindPropertyRelative("gridLineColor");
+            _crossLineColor = _gcData.FindPropertyRelative("crossLineColor");
 
             Heading("Grid Settings");
             Space(10);
 
             _enableDebugSettings = EditorGUILayout.Toggle("Show debug settings : ", _enableDebugSettings);
-            _enableCellValidator = EditorGUILayout.Toggle("Enable cell editing : ", _enableCellValidator);
-
-            if (_enableCellValidator)
-            {
-                Space(10);
-                Info($"If enabled then by pressing {_validCellKey} you can make a cell in grid valid and by pressing {_invalidCellKey} you can make a cell in grid invalid");
-                Space(20);
-            }
 
             if (_shouldDrawGizmos.boolValue == false)
             {
@@ -71,6 +63,12 @@ namespace FFG_Editors
                 if (Button("Disable Grid View"))
                     _shouldDrawGizmos.boolValue = false;
             }
+
+            Space(10);
+
+            PropertyField(_useSimpleSpriteRendering, "Create sprite grid on Awake :", "Set this as true if you need some kind of representation of cells");
+            if (_useSimpleSpriteRendering.boolValue)
+                PropertyField(_defaultSimpleSprite, "Default sprite :", "This will be the default sprite for all the cells");
 
             Space(20);
 
@@ -133,63 +131,77 @@ namespace FFG_Editors
                 Space(10);
                 _gridLineColor.colorValue = EditorGUILayout.ColorField("Grid line color : ", _gridLineColor.colorValue);
                 _crossLineColor.colorValue = EditorGUILayout.ColorField("Cross line color : ", _crossLineColor.colorValue);
-                Space(10);
-                _validCellKey = (KeyCode)EditorGUILayout.EnumPopup("Key for setting valid cells", _validCellKey);
-                _invalidCellKey = (KeyCode)EditorGUILayout.EnumPopup("Key for setting invalid cells", _invalidCellKey);
             }
 
             EditorGUI.EndDisabledGroup();
         }
+    }
 
-        private void OnSceneGUI()
+    public class EditorUtils<TType> : Editor where TType : Object
+    {
+        public TType Root => (TType)target;
+
+        public override void OnInspectorGUI()
         {
-            if (_enableCellValidator)
-            {
-                Event e = Event.current;
-                SceneView scene = SceneView.currentDrawingSceneView;
-
-                if (e.isKey)
-                {
-                    var ppp = EditorGUIUtility.pixelsPerPoint;
-                    _mousePosition = e.mousePosition;
-
-                    _mousePosition.y = scene.camera.pixelHeight - _mousePosition.y * ppp;
-                    _mousePosition.x = _mousePosition.x * ppp;
-                    _mousePosition = scene.camera.ScreenToWorldPoint(_mousePosition);
-
-                    // Initializing cell list                    
-                    var gridOrigin = Root.GridOrigin;
-                    var cellDimension = Root.CellDimension;
-                    var gridDimension = Root.GridDimension;
-                    int x = Mathf.FloorToInt((_mousePosition - gridOrigin).x / cellDimension.x);
-                    int y = Mathf.FloorToInt((_mousePosition - gridOrigin).y / cellDimension.y);
-
-                    // Check if the mouse position is in a valid grid cell
-                    if (x >= 0 && x < gridDimension.x && y >= 0 && y < gridDimension.y)
-                    {
-                        Vector2Int targetIndex = new Vector2Int(x, y);
-                        int index = -1;
-                        int length = _invalidCellArray.arraySize;
-
-                        for (int i = 0; i < length; i++)
-                            if (_invalidCellArray.GetArrayElementAtIndex(i).vector2IntValue == targetIndex)
-                            {
-                                index = i;
-                                break;
-                            }
-
-                        if (e.keyCode == _invalidCellKey && index == -1)
-                        {
-                            _invalidCellArray.InsertArrayElementAtIndex(length);
-                            _invalidCellArray.GetArrayElementAtIndex(length).vector2IntValue = targetIndex;
-                        }
-
-                        if (e.keyCode == _validCellKey && index != -1)
-                            _invalidCellArray.GetArrayElementAtIndex(index).DeleteCommand();
-                    }
-                    serializedObject.ApplyModifiedProperties();
-                }
-            }
+            serializedObject.Update();
+            CustomOnGUI();
+            serializedObject.ApplyModifiedProperties();
         }
+
+        public virtual void CustomOnGUI() { }
+
+        public SerializedProperty GetProperty(string propertyName)
+            => serializedObject.FindProperty(propertyName);
+
+        public void PropertyField(SerializedProperty property)
+            => PropertyField(property, "", "");
+
+        public void PropertyField(SerializedProperty property, string propertyName, string tooltip)
+            => EditorGUILayout.PropertyField(property, new GUIContent(propertyName, tooltip));
+
+        public void Info(string info, MessageType type = MessageType.Info)
+            => EditorGUILayout.HelpBox(info, type);
+
+        public void PropertySlider(SerializedProperty property, float min, float max, string label)
+            => EditorGUILayout.Slider(property, min, max, label);
+
+        public void Space(float val)
+            => GUILayout.Space(val);
+
+        public void Heading(string label)
+        {
+            var style = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold
+            };
+            EditorGUILayout.LabelField(label, style, GUILayout.ExpandWidth(true));
+        }
+        public bool Button(string content)
+            => GUILayout.Button(content);
+
+        public bool Button(string content, float height)
+            => GUILayout.Button(content, GUILayout.Height(height));
+
+        public bool Button(string content, float height, float width)
+            => GUILayout.Button(content, GUILayout.Height(height), GUILayout.Width(width));
+
+        public int DropdownList(string label, int index, string[] choices)
+            => EditorGUILayout.Popup(label, index, choices);
+
+        public void BeginVertical()
+            => EditorGUILayout.BeginVertical();
+
+        public void EndVertical()
+            => EditorGUILayout.EndVertical();
+
+        public void BeginHorizontal()
+            => EditorGUILayout.BeginHorizontal();
+
+        public void EndHorizontal()
+            => EditorGUILayout.EndHorizontal();
+
+        public void Label(string labelContent)
+            => EditorGUILayout.LabelField(labelContent);
     }
 }
